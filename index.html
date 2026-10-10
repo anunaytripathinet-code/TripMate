@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TripMate AI – Smart Route &amp; Side Quest Planner</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-layout">
+
+    <!-- FAR LEFT DARK BRAND RAIL (matching reference UI) -->
+    <nav class="brand-rail" aria-label="Main Navigation">
+        <div class="brand-top">
+            <div class="brand-logo-row">
+                <div class="brand-mountain-icon" aria-hidden="true">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
+                    </svg>
+                </div>
+                <div class="brand-title-wrap">
+                    <span class="brand-title">TripMate</span>
+                    <span class="brand-tagline">Plan smart. Travel better.</span>
+                </div>
+            </div>
+
+            <ul class="nav-rail-links" role="tablist" aria-label="Planning views">
+                <li>
+                    <button class="rail-btn active" data-tab="tab-plan" role="tab" aria-selected="true" aria-controls="tab-plan" id="nav-btn-plan">
+                        <span class="rail-icon" aria-hidden="true">🗺️</span>
+                        <span class="rail-label">Plan Trip</span>
+                    </button>
+                </li>
+                <li>
+                    <button class="rail-btn" data-tab="tab-sidequests" role="tab" aria-selected="false" aria-controls="tab-sidequests" id="nav-btn-sq">
+                        <span class="rail-icon" aria-hidden="true">🪄</span>
+                        <span class="rail-label">Side Quests</span>
+                        <span class="rail-badge" id="sqBadge" style="display:none">0</span>
+                    </button>
+                </li>
+                <li>
+                    <button class="rail-btn" data-tab="tab-search" role="tab" aria-selected="false" aria-controls="tab-search" id="nav-btn-search">
+                        <span class="rail-icon" aria-hidden="true">🔍</span>
+                        <span class="rail-label">Places</span>
+                    </button>
+                </li>
+                <li>
+                    <button class="rail-btn" data-tab="tab-itinerary" role="tab" aria-selected="false" aria-controls="tab-itinerary" id="nav-btn-itinerary">
+                        <span class="rail-icon" aria-hidden="true">📅</span>
+                        <span class="rail-label">Itinerary</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="brand-bottom">
+            <div class="mountain-contour-graphic" aria-hidden="true">
+                <svg viewBox="0 0 160 60" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.2">
+                    <path d="M0 50 Q 30 20, 60 40 T 120 25 T 160 45" />
+                    <path d="M0 55 Q 45 35, 90 48 T 160 52" />
+                </svg>
+            </div>
+            <div class="brand-cursive-slogan">Good Trips<br>Better Memories</div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT SIDEBAR PANEL -->
+    <aside class="trip-sidebar" id="tripSidebar" aria-label="Trip planning panel">
+
+        <!-- TOP HEADER BAR (matching UI photo3) -->
+        <header class="panel-header">
+            <div class="trip-breadcrumb-row">
+                <span class="breadcrumb-text">← Road Trip Planner</span>
+                <span class="ai-badge" id="aiBadge">Checking AI…</span>
+            </div>
+            <div class="trip-title-row">
+                <div class="trip-icon-badge" aria-hidden="true">⛰️</div>
+                <div class="trip-title-text" id="tripHeaderTitle">My Next Journey</div>
+            </div>
+            <div class="trip-meta-pill-row">
+                <span class="meta-pill" id="tripMetaDates">📅 <span id="metaDaysCount">1</span> Day Trip</span>
+                <span class="meta-pill" id="tripMetaStops">📍 <span id="metaStopsCount">0</span> Stops</span>
+                <div class="route-summary-pill" id="routeSummary" style="display:none">
+                    🚗 <span id="routeSummaryText">--</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- VIEW 1: PLAN -->
+        <div class="tab-content active" id="tab-plan" role="tabpanel">
+
+            <div class="settings-card">
+                <div class="card-section-title">
+                    <span>🧳 Trip Setup</span>
+                </div>
+                <div class="form-grid">
+
+                    <!-- Origin Picker -->
+                    <div class="form-group full-width endpoint-picker-group">
+                        <label for="tripOriginInput">
+                            <span class="ep-dot origin-dot" aria-hidden="true"></span>
+                            Origin <span class="required-label" aria-label="required">*</span>
+                        </label>
+                        <div class="endpoint-search-row">
+                            <input type="text" id="tripOriginInput"
+                                   placeholder="e.g. Etawah, Uttar Pradesh"
+                                   autocomplete="off" aria-describedby="originStatusText">
+                            <button class="endpoint-search-btn" id="originSearchBtn">Search</button>
+                        </div>
+                        <div class="endpoint-status" id="originStatus" aria-live="polite">
+                            <span class="status-icon warn" aria-hidden="true">⚠</span>
+                            <span class="status-text" id="originStatusText">Search and select to confirm.</span>
+                        </div>
+                        <ul class="endpoint-results-list" id="originResultsList"
+                            style="display:none" role="listbox" aria-label="Origin results"></ul>
+                    </div>
+
+                    <!-- Destination Picker -->
+                    <div class="form-group full-width endpoint-picker-group">
+                        <label for="tripDestInput">
+                            <span class="ep-dot dest-dot" aria-hidden="true"></span>
+                            Destination <span class="required-label" aria-label="required">*</span>
+                        </label>
+                        <div class="endpoint-search-row">
+                            <input type="text" id="tripDestInput"
+                                   placeholder="e.g. Leh, Ladakh"
+                                   autocomplete="off" aria-describedby="destStatusText">
+                            <button class="endpoint-search-btn" id="destSearchBtn">Search</button>
+                        </div>
+                        <div class="endpoint-status" id="destStatus" aria-live="polite">
+                            <span class="status-icon warn" aria-hidden="true">⚠</span>
+                            <span class="status-text" id="destStatusText">Search and select to confirm.</span>
+                        </div>
+                        <ul class="endpoint-results-list" id="destResultsList"
+                            style="display:none" role="listbox" aria-label="Destination results"></ul>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tripDaysInput">Trip Days</label>
+                        <input type="number" id="tripDaysInput" min="1" max="14" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="tripStartTimeInput">Start Time</label>
+                        <input type="time" id="tripStartTimeInput" value="09:00">
+                    </div>
+                    <div class="form-group">
+                        <label for="tripDailyLimitInput">Daily Limit (hrs)</label>
+                        <input type="number" id="tripDailyLimitInput" min="4" max="16" value="8">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="tripInterestsInput">Your Interests</label>
+                        <input type="text" id="tripInterestsInput"
+                               value="Nature, Temples, Photography, Cafes, Forts"
+                               placeholder="e.g. Nature, History, Temples, Forts">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Route Stops Manager -->
+            <div class="stops-manager-card">
+                <div class="card-header-flex">
+                    <div class="card-section-title">
+                        <span>📍 Route Stops</span>
+                        <span class="stops-count-pill" id="stopsCount">0</span>
+                    </div>
+                    <button class="text-btn" id="addPresetStopsBtn" title="Load sample stops">
+                        + Sample stops
+                    </button>
+                </div>
+
+                <div id="stopsEmptyNotice" class="empty-state-notice">
+                    No stops added yet. Confirm Origin and Destination, then discover stops in <strong>Side Quests</strong>.
+                </div>
+                <ul id="selectedStopsList" class="stops-list" aria-label="Route stops"></ul>
+
+                <button id="buildRouteBtn" class="primary-action-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                         stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    Calculate Route &amp; Build Itinerary
+                </button>
+            </div>
+        </div><!-- /tab-plan -->
+
+        <!-- VIEW 2: SIDE QUESTS (matching UI photo3) -->
+        <div class="tab-content" id="tab-sidequests" role="tabpanel">
+
+            <div class="sq-header-card">
+                <div class="sq-title-row">
+                    <span class="sq-title-icon" aria-hidden="true">🪄</span>
+                    <div>
+                        <h3 class="sq-title">Side Quests</h3>
+                        <p class="sq-subtitle">Must-visit spots between your destinations</p>
+                    </div>
+                </div>
+
+                <!-- Route Section / Day Selector (Scoped, small, reliable queries) -->
+                <div class="sq-section-box">
+                    <div class="sq-section-label-row">
+                        <span class="sq-section-caption">Route Section / Day:</span>
+                        <span class="sq-section-hint" id="sqSectionHint">Search specific leg</span>
+                    </div>
+                    <select id="sqSectionSelector" class="sq-select" aria-label="Select Route Section to search">
+                        <option value="all">Entire Route (Balanced Sample)</option>
+                        <option value="section-1">Section 1: Early Journey (Start Leg)</option>
+                        <option value="section-2" selected>Section 2: Mid-Journey (Core Corridor)</option>
+                        <option value="section-3">Section 3: Destination Approach</option>
+                    </select>
+                </div>
+
+                <!-- Corridor Radius Selector (5 km, 10 km, 20 km) -->
+                <div class="sq-radius-box">
+                    <div class="sq-radius-label-row">
+                        <span class="sq-radius-caption">Corridor Search Radius:</span>
+                        <span class="sq-radius-hint" id="sqRadiusHint">10 km off-road</span>
+                    </div>
+                    <div class="sq-radius-pills" role="radiogroup" aria-label="Corridor search radius">
+                        <label class="radius-pill-label">
+                            <input type="radio" name="sqRadius" value="5000" class="sq-radius-input">
+                            <span class="radius-pill-btn">5 km</span>
+                        </label>
+                        <label class="radius-pill-label">
+                            <input type="radio" name="sqRadius" value="10000" class="sq-radius-input" checked>
+                            <span class="radius-pill-btn">10 km</span>
+                        </label>
+                        <label class="radius-pill-label">
+                            <input type="radio" name="sqRadius" value="20000" class="sq-radius-input">
+                            <span class="radius-pill-btn">20 km</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Category filter and count -->
+                <div class="sq-filter-row">
+                    <select id="sqInterestFilter" class="sq-select" aria-label="Filter by category">
+                        <option value="">All Categories</option>
+                        <option value="attraction">Top Attractions</option>
+                        <option value="viewpoint">Viewpoints &amp; Peaks</option>
+                        <option value="historic">Historic Sites &amp; Forts</option>
+                        <option value="nature">Nature Spots &amp; Parks</option>
+                        <option value="temple">Temples &amp; Sacred Places</option>
+                        <option value="cafe">Cafes &amp; Food</option>
+                        <option value="market">Local Markets</option>
+                        <option value="museum">Museums</option>
+                    </select>
+                    <span class="sq-count-badge" id="sqCountLabel"></span>
+                </div>
+
+                <div class="sq-btn-row">
+                    <button id="discoverSideQuestsBtn" class="sq-discover-btn" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        Discover Along Section
+                    </button>
+                    <button id="sqRetryBtn" class="sq-retry-btn" style="display:none" aria-label="Retry Search">
+                        🔄 Retry
+                    </button>
+                </div>
+
+                <!-- Status alert box with distinct error states -->
+                <div class="sq-status-box" id="sqStatus" aria-live="polite" style="display:none"></div>
+            </div>
+
+            <!-- Smiling Dotted Spinner Loader (matching UI photo2 and photo3) -->
+            <div class="sq-loader-container" id="sqLoadingSpinner" style="display:none">
+                <div class="smile-spinner" aria-hidden="true">
+                    <div class="smile-dot d1"></div>
+                    <div class="smile-dot d2"></div>
+                    <div class="smile-dot d3"></div>
+                    <div class="smile-dot d4"></div>
+                    <div class="smile-dot d5"></div>
+                    <div class="smile-dot d6"></div>
+                    <div class="smile-dot d7"></div>
+                    <div class="smile-dot d8"></div>
+                    <div class="smile-dot d9"></div>
+                    <div class="smile-dot d10"></div>
+                    <div class="smile-dot d11"></div>
+                    <div class="smile-dot d12"></div>
+                    <div class="smile-face">
+                        <span class="eye left">^</span>
+                        <span class="mouth">‿</span>
+                        <span class="eye right">^</span>
+                    </div>
+                </div>
+                <div class="spinner-title">Planning your perfect route...</div>
+                <div class="spinner-sub" id="spinnerSubtitle">Finding real OpenStreetMap places along your travel corridor.</div>
+            </div>
+
+            <p class="sq-disclaimer">
+                📌 <strong>Real OSM Data:</strong> Straight-line distance is shown from the nearest route corridor point. Click any card to highlight on map.
+            </p>
+
+            <div id="sqResultsArea">
+                <div class="empty-state-notice" id="sqEmptyNotice">
+                    Calculate a route in <strong>Plan</strong> first, then click <strong>Discover Along Route Corridor</strong>.
+                </div>
+                <ul id="sqResultsList" class="sq-results-list" aria-label="Side quest suggestions" style="display:none"></ul>
+            </div>
+        </div><!-- /tab-sidequests -->
+
+        <!-- VIEW 3: PLACES SEARCH -->
+        <div class="tab-content" id="tab-search" role="tabpanel">
+            <div class="search-box-wrapper">
+                <div class="search-input-group">
+                    <span class="search-icon" aria-hidden="true">🔍</span>
+                    <input type="text" id="searchInput"
+                           placeholder="Search any landmark, cafe, temple…"
+                           autocomplete="off" aria-label="Search for a place">
+                    <button id="clearSearchBtn" class="clear-btn" style="display:none" aria-label="Clear">✕</button>
+                </div>
+                <button id="searchBtn" class="search-action-btn">Search</button>
+            </div>
+
+            <div class="category-chips" id="categoryChips" role="group" aria-label="Quick filters">
+                <button class="chip active" data-type="">All</button>
+                <button class="chip" data-type="attraction">Attractions</button>
+                <button class="chip" data-type="temple">Temples</button>
+                <button class="chip" data-type="cafe">Cafes</button>
+                <button class="chip" data-type="hotel">Hotels</button>
+                <button class="chip" data-type="waterfall">Waterfalls</button>
+            </div>
+
+            <div class="results-area" aria-live="polite">
+                <div id="resultsMessage" class="results-message">
+                    <p>Search a place to add it as a route stop.</p>
+                </div>
+                <ul id="resultsList" class="results-list" style="display:none" aria-label="Search results"></ul>
+            </div>
+        </div>
+
+        <!-- VIEW 4: ITINERARY -->
+        <div class="tab-content" id="tab-itinerary" role="tabpanel">
+
+            <div id="routeOverviewCard" class="route-overview-card" style="display:none">
+                <div class="overview-header">
+                    <h4>🚗 Route Overview</h4>
+                    <span class="estimate-pill">OSRM Verified</span>
+                </div>
+                <div class="overview-metrics">
+                    <div class="metric-col">
+                        <span class="metric-label">Distance</span>
+                        <span class="metric-val" id="totalRouteDistance">--</span>
+                    </div>
+                    <div class="metric-col">
+                        <span class="metric-label">Drive Time</span>
+                        <span class="metric-val" id="totalRouteDuration">--</span>
+                    </div>
+                    <div class="metric-col">
+                        <span class="metric-label">Stops</span>
+                        <span class="metric-val" id="totalStopsMetric">--</span>
+                    </div>
+                </div>
+                <details class="legs-accordion">
+                    <summary>Leg-by-leg breakdown</summary>
+                    <div id="legsBreakdownContainer" class="legs-list"></div>
+                </details>
+            </div>
+
+            <!-- Delay Simulator -->
+            <div class="delay-simulator-card">
+                <div class="delay-header">
+                    <span>⏱️ Delay Simulator</span>
+                    <span class="hint-pill">Dynamic Rebalance</span>
+                </div>
+                <p class="delay-desc">Simulate lost minutes (traffic, delayed start) to auto-adjust your schedule:</p>
+                <div class="delay-controls">
+                    <input type="number" id="delayMinutesInput" min="0" max="480" step="5" value="0"
+                           aria-label="Minutes of delay">
+                    <span class="unit-text">min</span>
+                    <button id="applyDelayBtn" class="apply-delay-btn">Recalculate</button>
+                </div>
+                <div id="delaySuggestionNotice" class="delay-notice" style="display:none" aria-live="polite"></div>
+            </div>
+
+            <!-- Day-by-Day Schedule -->
+            <div class="itinerary-schedule-card">
+                <div class="card-section-title">
+                    <span>📅 Day-by-Day Schedule</span>
+                </div>
+                <div id="itineraryTimeline" class="timeline-container" aria-live="polite">
+                    <div class="empty-state-notice">
+                        Build a route in <strong>Plan</strong> to view your schedule.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gemini AI Insights -->
+            <div class="ai-insights-card">
+                <div class="ai-card-header">
+                    <div class="ai-header-title">
+                        <span aria-hidden="true">✨</span>
+                        <h4>Gemini AI Trade-Off Analysis</h4>
+                    </div>
+                </div>
+                <p id="aiExplanation" class="ai-explanation-text">
+                    Build a route, then click <strong>Ask Gemini</strong> for trade-off insights.
+                </p>
+                <div id="aiRankingSection" style="display:none">
+                    <div class="rankings-title">Recommended Stop Priority:</div>
+                    <ul id="aiRankingsList" class="rankings-list"></ul>
+                </div>
+                <div class="ai-action-row">
+                    <button id="triggerAiAnalysisBtn" class="ai-action-btn">✨ Ask Gemini for Trade-Offs</button>
+                </div>
+                <p class="ai-disclaimer">
+                    *AI analysis is strictly grounded in the stops, routes, and times computed by the application.
+                </p>
+            </div>
+        </div><!-- /tab-itinerary -->
+
+    </aside>
+
+    <!-- MAIN INTERACTIVE MAP CANVAS -->
+    <main class="map-container" aria-label="Map Canvas">
+        <div id="map" aria-label="Interactive route map"></div>
+
+        <!-- Top Right Map Destination Pill (matching UI photo3) -->
+        <div class="map-top-pill" id="mapTopPill">
+            <span class="map-top-icon">📍</span>
+            <span class="map-top-text" id="mapTopDestination">Explore Corridor</span>
+            <span class="map-top-arrow">▾</span>
+        </div>
+
+        <!-- Featured Card on Bottom Right of Map (matching UI photo3) -->
+        <div class="map-featured-card" id="mapFeaturedCard" style="display:none" aria-live="polite">
+            <button class="featured-card-close" id="closeFeaturedCardBtn" aria-label="Close featured card">✕</button>
+            <div class="featured-card-body">
+                <div class="featured-category-badge" id="featuredCategory">Featured Spot</div>
+                <h4 class="featured-title" id="featuredTitle">Place Name</h4>
+                <p class="featured-desc" id="featuredDesc">Description</p>
+                <div class="featured-metrics-row">
+                    <span class="featured-metric" id="featuredDist">📍 Distance from route</span>
+                    <span class="featured-metric" id="featuredDrive">🚗 Drive estimate</span>
+                </div>
+                <div class="featured-action-row">
+                    <button class="featured-add-btn" id="featuredAddBtn">+ Add to Trip</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</div><!-- /app-layout -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="script.js"></script>
+</body>
+</html>

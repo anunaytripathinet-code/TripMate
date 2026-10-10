@@ -1,0 +1,17 @@
+# ----------------------------------------------------
+# TripMate AI - Git Ignore File
+# ----------------------------------------------------
+# This file tells Git which files or folders to IGNORE.
+# They will NEVER be uploaded to GitHub or public repositories.
+
+# 1. Secret Environment Variables & API Keys (CRITICAL: NEVER COMMIT THIS!)
+.env
+
+# 2. Python compiled cache files
+__pycache__/
+*.py[cod]
+
+# 3. Python virtual environments (if created later)
+venv/
+.venv/
+env/
